@@ -31,7 +31,7 @@
       pop
       aload_3
       getfield frame_0/x I
-      sipush 1
+      sipush 3
       iadd
       invokestatic java/lang/String/valueOf(I)Ljava/lang/String;
       invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V

@@ -28,9 +28,9 @@ public class ASTDef implements ASTNode {
 		for (Binding b : decs) {
 			e.assoc(b.getID(), b.getExp().eval(e));
 		}
-
 		value = exp.eval(e);
 		e.endScope();
+		
 		return value;
 	}
 
