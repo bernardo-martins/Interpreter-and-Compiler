@@ -1,0 +1,188 @@
+PARSER_BEGIN(Parser0)
+
+
+import java.util.List;
+import java.util.LinkedList;
+import java.io.PrintStream;
+import java.io.File;
+
+  public class Parser0{
+  /** ID lister. */
+  
+  }
+PARSER_END(Parser0)
+
+SKIP :
+{
+  " "
+| "\t"
+| "\r"
+}
+
+TOKEN :
+{ 
+  < Num: (["0"-"9"]) + >
+  |
+  < DEF : "def" >
+  |
+  < IN : "in" >
+  |
+  < END : "end" >
+  |
+  < TRUE : "true" >
+  |
+  < FALSE : "false" >
+  |
+  < EQUALS : "==" >
+  |
+  < HIGHEREQUALS : ">="  >
+  |
+  < HIGHER : ">" >
+  |
+  < SMALLEREQUALS : "<="  >
+  |
+  < OR : "||" >
+  |
+  < AND : "&&" >
+  |
+  < NEG : "~" >
+  |
+  < SMALLER : "<" >
+  |
+  < PLUS : "+" >
+  |
+  < MINUS : "-">
+  |
+  < SEMICOLON : ";" >
+  |
+  < DOUBSEMICOLON : ";;">
+  |
+  < MUL : "*">
+  |
+  < DIV : "/">
+  |
+  < LPAR : "(" >
+  |
+  < RPAR : ")" >
+  |
+  < ID : ["a"-"z","A"-"Z"] ( ["a"-"z","A"-"Z","0"-"9"] )* >
+  |
+  < EQUAL : "=" >
+  |
+  < EL: "\n" >
+}
+
+ASTNode Start() :
+{
+    ASTNode t1 = null;
+}
+{
+    t1 = BA() <DOUBSEMICOLON>
+    {return t1;}
+}
+
+ASTNode BA() :
+{
+    ASTNode t1, t2 = null;
+    Token tok = null;
+}
+{
+    t1 = R() ( (tok = <OR> | tok = <AND>) t2 = R()
+    {
+        if(tok.kind == OR)
+            t1=new ASTAnd(t1,t2);
+        else if(tok.kind == AND)
+            t2=new ASTOr(t1,t2); 
+    }
+    
+     )*
+
+    {return t1;}
+
+}
+
+ASTNode R():
+{
+    ASTNode t1, t2 = null;
+    Token tok = null ;
+}
+{
+    t1 = T() ((tok = <HIGHER> | tok = <SMALLER> | tok = <SMALLEREQUALS> | tok = <HIGHEREQUALS> | tok = <EQUALS>) t2 = T(){
+        if(tok.kind == EQUALS)
+            t1 = new ASTBoolOp(t1,t2,"EQUALS");
+        else if(tok.kind == HIGHEREQUALS)
+            t1 = new ASTBoolOp(t1, t2, "HIGHEREQUALS");
+        else if(tok.kind == HIGHER)
+            t1 = new ASTBoolOp(t1,t2, "HIGHER");
+        else if(tok.kind == SMALLER)
+            t1 = new ASTBoolOp(t1,t2, "SMALLER");
+        else if(tok.kind == SMALLEREQUALS)
+            t1 = new ASTBoolOp(t1,t2, "SMALLEREQUALS");
+    
+    })*
+    
+    {return t1;}
+}
+
+ASTNode T():
+{
+    ASTNode t1, t2 = null;
+    Token tok = null;
+}
+{
+
+    t1 = F() ((tok = <PLUS> | tok = <MINUS> | tok = <DIV> | tok = <MUL>) t2 = F(){
+        {
+        System.out.println("boas!");
+        if(tok.kind == PLUS)
+            t1 = new ASTAdd(t1, t2);
+        else if(tok.kind == MINUS)
+            t1 = new ASTSub(t1,t2);
+        else if(tok.kind == DIV)
+            t1 = new ASTDiv(t1,t2);
+        else if(tok.kind == MUL)
+            t1 = new ASTMul(t1,t2);
+    }
+    } )*
+    
+     {return t1;}
+}
+
+ASTNode F():
+{
+    ASTNode t1, t2=null;
+    List<Binding> binds=null;
+    Token tok, tok1=null;
+}
+{
+
+    (tok = <Num> { t1 = new ASTNum(Integer.parseInt(tok.image)); }
+    | tok=<LPAR> t1=R() <RPAR>
+    | tok=<MINUS> t1 = F(){ t1 = new ASTMinun(t1); }
+    | (tok=<TRUE> | tok=<FALSE>) {t1 = new ASTBool(Boolean.parseBoolean(tok.image)); }
+    | (tok = <DEF>) { binds = new LinkedList<Binding>(); }
+                      ( tok1 = <ID> <EQUAL> t1 = R() {binds.add(new Binding(tok1.image, t1));} )+
+                      <IN> t2 = R() <END> { t2 = new ASTDef(binds, t2); }
+    | (tok = <ID>) {  t1 = new ASTId(tok.image);  })    
+
+    {return t1;}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

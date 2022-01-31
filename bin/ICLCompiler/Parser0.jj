@@ -1,0 +1,232 @@
+PARSER_BEGIN(Parser0)
+
+package ICLCompiler;
+import java.util.List;
+import java.util.LinkedList;
+import java.io.PrintStream;
+import java.io.File;
+
+  public class Parser0{
+  /** ID lister. */
+  
+  }
+PARSER_END(Parser0)
+
+SKIP :
+{
+  " "
+| "\t"
+| "\r"
+| "\n"
+}
+
+TOKEN :
+{ 
+  < Num: (["0"-"9"]) + >
+  |
+  < DEF : "def" >
+  |
+  < IN : "in" >
+  |
+  < END : "end" >
+  |
+  < TRUE : "true" >
+  |
+  < FALSE : "false" >
+  |
+  < IF : "if">
+  |
+  < THEN : "then">
+  |
+  < ELSE : "else">
+  |
+  < WHILE : "while">
+  |
+  < DO : "do" >
+  |
+  < ASSIGN: ":=" >
+  |
+  < DEREF: "!" >
+  |
+  < NEW : "new">
+  |
+  < PRINT : "print">
+  |
+  < PRINTLN : "println">
+  |
+  < EQUALS : "==" >
+  |
+  < HIGHEREQ : ">="  >
+  |
+  < HIGHER : ">" >
+  |
+  < SMALLEREQ : "<="  >
+  |
+  < OR : "||" >
+  |
+  < AND : "&&" >
+  |
+  < NEG : "~" >
+  |
+  < SMALLER : "<" >
+  |
+  < NOT : "not" >
+  |
+  < EQUAL : "=" >
+  |
+  < PLUS : "+" >
+  |
+  < MINUS : "-">
+  |
+  < SEMICOLON : ";" >
+  |
+  < DOUBSEMICOLON : ";;">
+  |
+  < MUL : "*">
+  |
+  < MOD : "%">
+  |
+  < DIV : "/">
+  |
+  < LPAR : "(" >
+  |
+  < RPAR : ")" >
+  |
+  < ID : ["a"-"z","A"-"Z"] ( ["a"-"z","A"-"Z","0"-"9"] )* >
+  
+}
+
+ASTNode Start() :
+{
+ASTNode t1, t2=new ASTEmpty();
+}
+{
+  t1 = ES()  (<DOUBSEMICOLON> (t2 = ES())?)* (<EOF>)?
+	{return new ASTSeq(t1, t2);}
+}
+
+ASTNode ES():
+{
+  ASTNode t1, t2 = null;
+}
+{
+t1 = EB() (<SEMICOLON> (t2 = ES())?)*
+
+  {return new ASTSeq(t1,t2);}
+
+}
+
+
+ASTNode EB() :
+{
+  ASTNode t1, t2 = null;
+  Token tok = null;
+}
+{
+  t1 = EE() ((tok = <OR>| tok = <AND>) t2 = EE()
+  {
+      if(tok.kind == OR)
+        t1 = new ASTOrAnd(t1,t2, "OR");
+      else
+        t1 = new ASTOrAnd(t1,t2, "AND");
+  })*
+
+ { return t1; }
+}
+
+ASTNode EE() :
+{
+  ASTNode t1, t2 = null;
+  Token tok = null;
+}
+{
+  t1 = Exp() ((tok = <EQUALS> | tok = <HIGHEREQ> | tok = <HIGHER> | tok = <SMALLER> | tok = <SMALLEREQ> | tok = <ASSIGN>) t2 = Exp()
+  {
+      if(tok.kind == EQUALS)
+        t1 = new ASTBoolOp(t1,t2,"EQUALS");
+      else if(tok.kind == HIGHEREQ)
+        t1 = new ASTBoolOp(t1, t2,"HIGHEREQUALS");
+      else if(tok.kind == HIGHER)
+        t1 = new ASTBoolOp(t1,t2,"HIGHER");
+      else if(tok.kind == SMALLER)
+        t1 = new ASTBoolOp(t1,t2, "SMALLER");
+      else if(tok.kind == SMALLEREQ)
+        t1 = new ASTBoolOp(t1,t2,"SMALLEREQUALS");
+      else if(tok.kind == ASSIGN)
+        t1 = new ASTAssign(t1,t2);
+  })*
+
+ { return t1; }
+}
+
+
+ASTNode Exp() :
+{
+  ASTNode t1,t2 = null;
+  Token tok = null;
+}
+{
+     t1 = Term() ( ( tok=<PLUS> | tok=<MINUS> ) t2=Term() 
+                 {
+                   if (tok.kind == PLUS)
+                      t1 = new ASTAdd(t1,t2);
+                   else if (tok.kind == MINUS)  
+                      t1 = new ASTSub(t1,t2);
+                 }
+                 ) *
+    
+     { return t1; }
+
+}
+
+ASTNode Term() :
+{
+  ASTNode t1,t2 = null;
+  Token tok;
+}
+{
+     t1=Fact() ( ( tok = <MUL> | tok = <DIV> | tok = <MOD>) t2 = Fact()
+     {if(tok.kind == MUL)
+        t1 = new ASTMul(t1,t2);
+      else if(tok.kind == DIV)
+        t1 = new ASTDiv(t1,t2, "DIV");
+      else if(tok.kind == MOD)
+        t1 = new ASTDiv(t1,t2, "MOD");
+     }
+     )*
+
+     { return t1; }  
+	
+}
+
+ASTNode Fact() :
+{
+  ASTNode t1 = null;
+  ASTNode exp, exp1 =null;
+  List<Binding> binds = null;
+  Token tok, n = null;
+  
+}
+{
+    
+      (  tok=<Num>  { t1 = new ASTNum(Integer.parseInt(tok.image)); } 
+      | tok = <ID> {  t1 = new ASTId(tok.image);  }
+      | (tok=<TRUE> | tok=<FALSE>) {t1 = new ASTBool(Boolean.parseBoolean(tok.image)); }
+      | <MINUS> t1 = Fact(){ t1 = new ASTMinun(t1); }
+      | <NEW> t1 = Fact() {t1 = new ASTNew(t1);}
+      | <DEREF> t1 = Fact() {t1 = new ASTDeref(t1);}
+      | <LPAR> t1 = EB() <RPAR> 
+      | <DEF> { binds = new LinkedList<Binding>(); }
+                      ( n = <ID> <EQUAL> t1 = Exp() {binds.add(new Binding(n.image, t1));} )+
+                      <IN> exp =  ES() <END> { t1 = new ASTDef(binds, exp); }
+      | <IF> t1 = EE() <THEN> exp = Exp() (<ELSE> exp1 = Exp())? {t1 = new ASTIf(t1, exp, exp1);} 
+      | <PRINT> (t1 = Exp())? {t1 = new ASTPrint(t1, false);}
+      | <PRINTLN> (t1 = Exp())? {t1 = new ASTPrint(t1, true);} 
+      | <NOT> exp = Fact() { t1 = new ASTNot(exp); }
+      | <WHILE> exp = EB() <DO> exp1 = ES() <END> {t1 = new ASTWhile(exp, exp1);})
+      
+
+     
+  { return t1; }
+
+}
